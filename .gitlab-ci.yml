@@ -1,0 +1,40 @@
+stages:
+  - test
+  - publish
+
+
+services:
+  - name: postgres:12
+
+variables:
+  POSTGRES_DB: kdbi
+  POSTGRES_USER: kdbi
+  POSTGRES_PASSWORD: kdbi
+  GRADLE_USER_HOME: cache/.gradle
+
+cache:
+  paths:
+    - $GRADLE_USER_HOME/caches
+    - $GRADLE_USER_HOME/wrapper
+
+test:
+  stage: test
+  image: source.donesky.dev:4567/donesky/docker/java:13
+  tags:
+    - docker
+  variables:
+    database_url: "jdbc:postgresql://postgres:5432/kdbi"
+  script:
+    - ./gradlew check codeCoverageReport
+    - cat build/reports/jacoco/codeCoverageReport/html/index.html | grep -o '<tfoot>.*</tfoot>'
+
+publish:
+  stage: publish
+  image: source.donesky.dev:4567/donesky/docker/java:13
+  tags:
+    - docker
+  script:
+    - ./gradlew clean publish
+  only:
+    - master
+    - integration
