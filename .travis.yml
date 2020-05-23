@@ -5,6 +5,15 @@ jdk: openjdk13
 install:
   - java --version
 
+services:
+  - postgresql
+
+before_script:
+  - psql -c "create role kdbi with superuser login password 'kdbi'; create database kdbi;" -U postgres
+
+env:
+  - database_url="jdbc:postgresql://postgres:5432/kdbi"
+
 script:
   - ./gradlew check
   - ./gradlew codeCoverageReport
