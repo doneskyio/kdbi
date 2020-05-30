@@ -21,6 +21,7 @@ import org.apache.commons.dbcp2.PoolableConnection
 import org.apache.commons.dbcp2.PoolableConnectionFactory
 import org.apache.commons.dbcp2.PoolingDataSource
 import org.apache.commons.pool2.impl.GenericObjectPool
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig
 
 internal object DefaultConnectionConfig {
 
@@ -36,6 +37,8 @@ internal object DefaultConnectionConfig {
         get() = System.getenv("database_connection_maxIdle")?.toIntOrNull() ?: 5
     val connectionMinIdle: Int
         get() = System.getenv("database_connection_minIdle")?.toIntOrNull() ?: 5
+    val jmxEnabled: Boolean
+        get() = System.getenv("database_connection_jmxEnabled")?.toBoolean() ?: true
 }
 
 open class PoolableConnectionFactory(
@@ -44,7 +47,8 @@ open class PoolableConnectionFactory(
     private val password: String? = DefaultConnectionConfig.password,
     private val connectionMaxTotal: Int = DefaultConnectionConfig.connectionMaxTotal,
     private val connectionMinIdle: Int = DefaultConnectionConfig.connectionMinIdle,
-    private val connectionMaxIdle: Int = DefaultConnectionConfig.connectionMaxIdle
+    private val connectionMaxIdle: Int = DefaultConnectionConfig.connectionMaxIdle,
+    private val isJmxEnabled: Boolean = DefaultConnectionConfig.jmxEnabled
 ) : ConnectionFactory<PoolableConnection>() {
 
     override fun createDataSource(): DataSource {
@@ -58,7 +62,12 @@ open class PoolableConnectionFactory(
         ).apply {
             defaultAutoCommit = false
         }
-        val objectPool = GenericObjectPool<PoolableConnection>(connectionFactory).apply {
+        val objectPool = GenericObjectPool<PoolableConnection>(
+            connectionFactory,
+            GenericObjectPoolConfig<PoolableConnection>().apply {
+                jmxEnabled = isJmxEnabled
+            }
+        ).apply {
             maxTotal = connectionMaxTotal
             maxIdle = connectionMaxIdle
             minIdle = connectionMinIdle

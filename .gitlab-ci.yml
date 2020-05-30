@@ -19,7 +19,7 @@ cache:
 
 test:
   stage: test
-  image: source.donesky.dev:4567/donesky/docker/java:13
+  image: source.donesky.dev:4567/donesky/docker/java:11
   tags:
     - docker
   variables:
@@ -30,7 +30,7 @@ test:
 
 publish:
   stage: publish
-  image: source.donesky.dev:4567/donesky/docker/java:13
+  image: source.donesky.dev:4567/donesky/docker/java:11
   tags:
     - docker
   script:

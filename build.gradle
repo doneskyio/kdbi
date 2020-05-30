@@ -25,7 +25,7 @@ static getCurrentVersion() {
     if (tag != null && tag != "") {
         return tag
     }
-    return "0.0.1.10"
+    return "0.0.1.11"
 }
 
 allprojects {
@@ -172,7 +172,7 @@ allprojects {
 
     java {
         sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_13
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     dokka {
