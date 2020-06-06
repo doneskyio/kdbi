@@ -19,7 +19,9 @@ import java.sql.ResultSet
 import java.util.concurrent.ConcurrentHashMap
 import kdbi.Mappers
 import kdbi.annotation.ColumnName
+import kdbi.annotation.SqlConstructor
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
 import kotlin.reflect.KMutableProperty1
 import kotlin.reflect.KParameter
 import kotlin.reflect.KType
@@ -66,9 +68,13 @@ class ObjectFactory private constructor(private val type: KClass<*>) {
         }
     }
 
-    private val constructorParameters = type.primaryConstructor?.takeIf { it.parameters.isNotEmpty() }?.let {
-        it.parameters.map { ConstructorArgument(it) }
-    } ?: emptyList()
+    private val constructor: KFunction<*> by lazy {
+        type.primaryConstructor?.takeIf { it.parameters.isNotEmpty() }
+            ?: type.constructors.firstOrNull { it.annotations.any { it is SqlConstructor } }
+            ?: type.constructors.first()
+    }
+
+    private val constructorParameters = constructor.parameters.map { ConstructorArgument(it) }
 
     private val memberProperties = type.memberProperties.filterIsInstance<KMutableProperty1<Any, Any?>>().map {
         Property(
@@ -90,7 +96,6 @@ class ObjectFactory private constructor(private val type: KClass<*>) {
     }
 
     private fun newInstance(result: ResultSet): Any? {
-        val constructor = type.primaryConstructor ?: type.constructors.first()
         val o = if (constructorParameters.isNotEmpty()) {
             val arguments = mutableMapOf<KParameter, Any?>()
             constructorParameters.forEach { parameter ->
@@ -99,7 +104,7 @@ class ObjectFactory private constructor(private val type: KClass<*>) {
             constructor.callBy(arguments)
         } else {
             constructor.call()
-        }
+        } ?: return null
         memberProperties.forEach { property ->
             val columnIndex = try {
                 result.findColumn(property.name)
