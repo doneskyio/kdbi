@@ -18,6 +18,7 @@ package kdbi.impl.reflect
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Method
 import kdbi.DatabaseHandle
+import kdbi.KdbiQueryException
 import kdbi.ResultIterable
 import kotlin.reflect.KClass
 
@@ -27,41 +28,45 @@ internal class Handler(
 ) : InvocationHandler {
 
     override fun invoke(proxy: Any, method: Method, args: Array<Any?>?): Any? {
-        val query = queries.getQuery(method)
-        val statement = query.prepare(handle, args ?: emptyArray())
-        return when {
-            query.void -> statement.use { it.execute() }
-            query.returnUpdateCount && query.returnType == Int::class -> {
-                statement.use {
-                    it.execute()
-                    it.updateCount
+        try {
+            val query = queries.getQuery(method)
+            val statement = query.prepare(handle, args ?: emptyArray())
+            return when {
+                query.void -> statement.use { it.execute() }
+                query.returnUpdateCount && query.returnType == Int::class -> {
+                    statement.use {
+                        it.execute()
+                        it.updateCount
+                    }
                 }
-            }
-            else -> {
-                val factory = ObjectFactory[query.returnType]
-                val result = ResultIterable(
-                    statement,
-                    statement.executeQuery(),
-                    { factory.create(it) },
-                    !query.iterator || query.autoCloseResult,
-                    !query.iterator || query.autoCloseStatement
-                )
-                when {
-                    query.iterator -> result
-                    query.array || query.list || query.set ->
-                        if (query.set) {
-                            result.use { it.toSet() }
-                        } else {
-                            val list = result.use { it.toList() }
-                            if (query.array) {
-                                list.toArray(query.returnType)
+                else -> {
+                    val factory = ObjectFactory[query.returnType]
+                    val result = ResultIterable(
+                        statement,
+                        statement.executeQuery(),
+                        { factory.create(it) },
+                        !query.iterator || query.autoCloseResult,
+                        !query.iterator || query.autoCloseStatement
+                    )
+                    when {
+                        query.iterator -> result
+                        query.array || query.list || query.set ->
+                            if (query.set) {
+                                result.use { it.toSet() }
                             } else {
-                                list
+                                val list = result.use { it.toList() }
+                                if (query.array) {
+                                    list.toArray(query.returnType)
+                                } else {
+                                    list
+                                }
                             }
-                        }
-                    else -> result.use { it.firstOrNull() }
+                        else -> result.use { it.firstOrNull() }
+                    }
                 }
             }
+        } catch (e: Throwable) {
+            throw KdbiQueryException(e)
         }
     }
 
