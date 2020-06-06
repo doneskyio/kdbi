@@ -27,6 +27,7 @@ import java.util.Date as UTILDate
 import java.util.concurrent.ConcurrentHashMap
 import kdbi.annotation.SqlMapper
 import kotlin.reflect.KClass
+import kotlin.reflect.KTypeParameter
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.staticFunctions
 
@@ -65,8 +66,17 @@ object Mappers {
                 register(clazz, it.value.constructors.first().call())
             }
         clazz.memberProperties.forEach {
-            val type = it.returnType.classifier as KClass<*>
-            register(type)
+            if (it.returnType.classifier is KClass<*>) {
+                val type = it.returnType.classifier as KClass<*>
+                register(type)
+            } else if (it.returnType.classifier is KTypeParameter) {
+                val parameter = it.returnType.classifier as KTypeParameter
+                parameter.upperBounds.forEach {
+                    if (it is KClass<*>) {
+                        register(it)
+                    }
+                }
+            }
         }
     }
 
